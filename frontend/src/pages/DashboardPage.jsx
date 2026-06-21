@@ -12,7 +12,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
-import { getLeads } from "../api";
+import { createLead, getLeads } from "../services/api";
 
 function getPriorityColor(priority) {
   if (priority === "High") return "error";

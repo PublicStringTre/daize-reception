@@ -10,7 +10,7 @@ import {
   Alert,
   CircularProgress,
 } from "@mui/material";
-import { createLead } from "../api";
+import { createLead, getLeads } from "../services/api";
 
 const services = [
   "Emergency service",
