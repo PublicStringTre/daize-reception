@@ -1,9 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from app.models import LeadCreate, LeadResponse
 from app.lead_qualification import qualify_lead
-from datetime import datetime
-from uuid import uuid4
+from app.config import supabase
 
 app = FastAPI(title="Daize Reception API")
 
@@ -15,10 +14,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Temporary in-memory storage for first local test.
-# We will replace this with Supabase next.
-leads = []
-
 
 @app.get("/")
 def health_check():
@@ -29,8 +24,7 @@ def health_check():
 def create_lead(lead: LeadCreate):
     qualification = qualify_lead(lead)
 
-    new_lead = {
-        "id": str(uuid4()),
+    lead_data = {
         "business_id": lead.business_id,
         "customer_name": lead.customer_name,
         "customer_phone": lead.customer_phone,
@@ -47,13 +41,35 @@ def create_lead(lead: LeadCreate):
         "recommended_action": qualification["recommended_action"],
         "status": "New",
         "source": "Website Intake",
-        "created_at": datetime.utcnow().isoformat(),
     }
 
-    leads.append(new_lead)
-    return new_lead
+    try:
+        result = supabase.table("daize_leads").insert(lead_data).execute()
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create lead: {str(error)}",
+        )
+
+    if not result.data:
+        raise HTTPException(status_code=500, detail="Lead was not created")
+
+    return result.data[0]
 
 
 @app.get("/leads")
 def get_leads():
-    return leads
+    try:
+        result = (
+            supabase.table("daize_leads")
+            .select("*")
+            .order("created_at", desc=True)
+            .execute()
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch leads: {str(error)}",
+        )
+
+    return result.data
